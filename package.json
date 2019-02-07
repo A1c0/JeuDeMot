@@ -1,0 +1,16 @@
+{
+  "name": "arango-test",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "arangojs": "^6.10.0",
+    "bluebird": "^3.5.3",
+    "fs-extra": "^7.0.1",
+    "mongoose": "^5.3.12",
+    "progress": "^2.0.1",
+    "ramda": "^0.25.0",
+    "readline": "^1.3.0",
+    "xo": "^0.24.0"
+  }
+}
