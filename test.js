@@ -61,7 +61,7 @@ const getAllLemmeRelations = () => db.query(aql`
   return rel`
 );
 
-/*const getRelation = R.pipeP(
+/* Const getRelation = R.pipeP(
 	relationForWord,
 	c => c.all(),
 	R.path(['0']),
@@ -106,35 +106,80 @@ const main = async ph => {
 	const words = ph.split(' ');
 	const bob = await Bromise.map(words, findLemma);
 	console.log(bob);
-};*/
+}; */
 
-/*console.time('Lemmatisation');
+/* console.time('Lemmatisation');
 main('Salut ça va ?')
 	.then(() => {
 		console.timeEnd('Lemmatisation');
-	});*/
+	}); */
+
+const computeRelScore = async tabWord =>
+	new Promise(async resolve => {
+		await tabWord.forEach(async word => {
+			const wwMax = (1 / word.max.ww);
+			const wRelMax = (1 / word.max.wRel);
+			word.res.forEach(async res => {
+				res.score = ((res.ww * wwMax) * 0.5) + ((res.wRel * wRelMax) * 0.5);
+			});
+		});
+		resolve(await tabWord.map(x => x.res.sort((a, b) => b.score - a.score)));
+	});
+
+const getMaxScore = async tabWord =>
+	new Promise(async resolve => {
+		await tabWord.forEach(async word => {
+			const max = {ww: 0, wRel: 0};
+			word.res.forEach(async res => {
+				if (res.ww > max.ww) {
+					max.ww = res.ww;
+				}
+
+				if (res.wRel > max.wRel) {
+					max.wRel = res.wRel;
+				}
+			});
+			word.max = max;
+		});
+		resolve(tabWord);
+	});
 
 const main = async tabWord => {
 	const tabRes = [];
 	await tabWord.reduce(async (promise, word) => {
 		await promise;
-		let wRef = await wordMatch(word);
-		tabRes.push({
-			word: word,
-			res: await getClosestWord(wRef._result[0]._id)
-		});
+		const wRef = await wordMatch(word);
+		if (wRef._result.length > 0) {
+			tabRes.push({
+				word,
+				ww: wRef._result[0].weight,
+				res: await getClosestWord(wRef._result[0]._id)
+			});
+		} else {
+			tabRes.push({
+				word,
+				ww: 0,
+				res: []
+			});
+		}
 	}, Promise.resolve());
-	tabRes.forEach(word => {
-		console.log(word);
+	getMaxScore(tabRes).then(resWithMax => {
+		computeRelScore(resWithMax).then(resWithScore => {
+			resWithScore.forEach(word => {
+				console.log(word);
+			});
+		});
 	});
 };
 
 const getClosestWord = async wordID => {
-	const resRel = await synRelationForWord(wordID);
+	const resRelSyn = await synRelationForWord(wordID);
+	const resRelFamily = await familyRelationForWord(wordID);
+	const rels = resRelSyn._result.concat(resRelFamily._result);
 	const tabRel = [];
-	await resRel._result.reduce(async (promise, res) => {
+	await rels.reduce(async (promise, res) => {
 		await promise;
-		let wRef1 = await wordMatchId(res._from);
+		const wRef1 = await wordMatchId(res._from);
 		let wRef2 = await wordMatchId(res._to);
 		wRef2 = wRef2._result[0];
 		if (wRef1 !== undefined && wRef2 !== undefined) {
@@ -146,17 +191,17 @@ const getClosestWord = async wordID => {
 		}
 	}, Promise.resolve());
 	return tabRel.sort((a, b) => b.wRel - a.wRel)
-		.splice(0, 10);
+		.splice(0, 15);
 };
 
 const test = async word => {
 	let wRef = await wordMatch(word);
 	if (wRef._result.length > 0) {
 		wRef = wRef._result[0];
-		//console.log(wRef);
-		//const resRel = await equivRelationForWord(wRef._id);
+		// Console.log(wRef);
+		// const resRel = await equivRelationForWord(wRef._id);
 		const resRel = await getAllLemmeRelations();
-		//console.log(resRel);
+		// Console.log(resRel);
 		console.log(`Famille de ${word}: `);
 		await resRel._result.reduce(async (promise, res) => {
 			await promise;
@@ -164,7 +209,7 @@ const test = async word => {
 			let wRef2 = await wordMatchId(res._to);
 			wRef1 = wRef1._result[0];
 			wRef2 = wRef2._result[0];
-			//console.log(wRef2);
+			// Console.log(wRef2);
 			if (wRef1 !== undefined && wRef2 !== undefined) {
 				tabRes.push({
 					word1: wRef1.word,
@@ -180,11 +225,9 @@ const test = async word => {
 	}
 };
 
-/*test('').then(() => {
+/* Test('').then(() => {
 	console.log(tabRes.sort((a, b) => b.wRel - a.wRel));
-});*/
+}); */
 
 main(tabWord);
-
-
 
