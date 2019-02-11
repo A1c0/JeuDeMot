@@ -115,3 +115,12 @@ fabric.properties
 # Editor-based Rest Client
 .idea/httpRequests
 
+/yarn.lock
+Supprimerait .idea/arango.iml
+Supprimerait .idea/codeStyles/
+Supprimerait .idea/encodings.xml
+Supprimerait .idea/misc.xml
+Supprimerait .idea/modules.xml
+Supprimerait files/
+Supprimerait jeu-de-mot.txt
+/jeu-de-mot.txt

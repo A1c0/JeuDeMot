@@ -1,4 +1,4 @@
-const {Database, aql} = require('arangojs');
+const {Database} = require('arangojs');
 
 const db = new Database();
 const graph = db.graph('jeuDeMot');
