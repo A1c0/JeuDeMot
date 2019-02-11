@@ -6,8 +6,13 @@ const db = new Database();
 const graph = db.graph('lirmm');
 
 const tabWord = [
-	'vacances',
-	'bientôt'
+	'fait',
+	'voyage',
+	'mange',
+	'petits',
+	'bagages',
+	'vols',
+	'vendait'
 ];
 
 const wordMatch = w => db.query(aql`
@@ -42,6 +47,12 @@ const varianteRelationForWord = fromId => db.query(aql`
 
 const equivRelationForWord = fromId => db.query(aql`
   for rel in equivRelations
+  filter rel._from == ${fromId}
+  return rel`
+);
+
+const lemmeRelationForWord = fromId => db.query(aql`
+  for rel in lemmeRelations
   filter rel._from == ${fromId}
   return rel`
 );
@@ -173,11 +184,11 @@ const main = async tabWord => {
 };
 
 const getClosestWord = async wordID => {
-	const resRelSyn = await synRelationForWord(wordID);
-	const resRelFamily = await familyRelationForWord(wordID);
-	const rels = resRelSyn._result.concat(resRelFamily._result);
+	const resRelSyn = await lemmeRelationForWord(wordID);
+	/*const resRelFamily = await familyRelationForWord(wordID);
+	const rels = resRelSyn._result.concat(resRelFamily._result);*/
 	const tabRel = [];
-	await rels.reduce(async (promise, res) => {
+	await resRelSyn.reduce(async (promise, res) => {
 		await promise;
 		const wRef1 = await wordMatchId(res._from);
 		let wRef2 = await wordMatchId(res._to);
@@ -194,15 +205,16 @@ const getClosestWord = async wordID => {
 		.splice(0, 15);
 };
 
-const test = async word => {
-	let wRef = await wordMatch(word);
-	if (wRef._result.length > 0) {
-		wRef = wRef._result[0];
+const test = async () => {
+	//let wRef = await wordMatch(word);
+	//if (wRef._result.length > 0) {
+		//wRef = wRef._result[0];
 		// Console.log(wRef);
 		// const resRel = await equivRelationForWord(wRef._id);
+	console.log('all relations');
 		const resRel = await getAllLemmeRelations();
-		// Console.log(resRel);
-		console.log(`Famille de ${word}: `);
+		console.log(resRel);
+		//console.log(`Famille de ${word}: `);
 		await resRel._result.reduce(async (promise, res) => {
 			await promise;
 			let wRef1 = await wordMatchId(res._from);
@@ -211,23 +223,24 @@ const test = async word => {
 			wRef2 = wRef2._result[0];
 			// Console.log(wRef2);
 			if (wRef1 !== undefined && wRef2 !== undefined) {
-				tabRes.push({
+				/*tabRes.push({
 					word1: wRef1.word,
 					ww1: wRef1.weight,
 					word2: wRef2.word,
 					ww2: wRef2.weight,
 					wRel: res.weight
-				});
+				});*/
 			}
 		}, Promise.resolve());
-	} else {
+	/*} else {
 		console.log(`There is no family word of ${word}`);
-	}
+	}*/
 };
 
-/* Test('').then(() => {
+/*Test('').then(() => {
 	console.log(tabRes.sort((a, b) => b.wRel - a.wRel));
 }); */
 
 main(tabWord);
+//test();
 
