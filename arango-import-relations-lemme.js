@@ -51,7 +51,7 @@ const bulkImportFile = R.pipeP(
 	),
 	R.map(parse),
 	R.filter(R.complement(R.equals('NOT HANDLED'))),
-	R.filter(R.pipe(R.prop('type'), R.equals('r_syn'))),
+	R.filter(R.pipe(R.prop('type'), R.equals('r_lemme'))),
 	R.tap(R.pipe(R.length, console.log)),
 	x => relations.import(x)
 );
