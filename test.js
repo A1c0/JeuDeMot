@@ -15,9 +15,9 @@ const tabSentence = [
 
 const tabWord = [
 	'faire',
+	'lille',
 	'randonnée',
-	'voyager',
-	'lille'
+	'voyager'
 ];
 
 const computeRelScore = async tabWord =>
@@ -167,6 +167,70 @@ const getIndexTag = async (tag, tabTag) => {
 	});
 };
 
+const groupSameSentenceTag = async tabTagSentence => {
+	return new Promise(resolve => {
+		tabTagSentence.reduce(async (promise, tag1) => {
+			await Promise;
+			await computeTabEqual(tag1, tabTagSentence).then(tabTagEqual => {
+				if (tabTagEqual.length > 1) {
+					const newTag = {tag: [], sentences: []};
+					newTag.sentences = tabTagSentence[tabTagEqual[0]].sentences;
+					tabTagEqual.forEach(index => {
+						newTag.tag.push(tabTagSentence[index].tag);
+					});
+					if (newTag.sentences.length > 1) {
+						let test = true;
+						tabTagSentence.forEach(tag => {
+							if (test) {
+								test = tagEqualTag(tag, newTag);
+							}
+						});
+						if (test) {
+							tabTagSentence.push(newTag);
+						}
+					}
+				}
+			});
+		}, Promise.resolve());
+		resolve(tabTagSentence);
+	});
+};
+
+const computeTabEqual = async (tag1, tabTagSentence) => {
+	return new Promise(resolve => {
+		const tabTagEqual = [];
+		for (let i = 0; i < tabTagSentence.length; i++) {
+			arrayEqualArray(tag1.sentences, tabTagSentence[i].sentences)
+				.then(equal => {
+					if (equal) {
+						tabTagEqual.push(i);
+					}
+				});
+		}
+
+		resolve(tabTagEqual);
+	});
+};
+
+const tagEqualTag = async (tag1, tag2) => {
+	return (JSON.stringify(tag1) === JSON.stringify(tag2));
+};
+
+const arrayEqualArray = async (array1, array2) => {
+	return new Promise(resolve => {
+		if (array1.length === array2.length) {
+			array1.forEach(item => {
+				if (array2.indexOf(item) < 0) {
+					resolve(false);
+				}
+			});
+			resolve(true);
+		} else {
+			resolve(false);
+		}
+	});
+};
+
 const sortAndFilter = async tabWord => {
 	return new Promise(resolve => {
 		tabWord.forEach(word => {
@@ -183,9 +247,19 @@ const test = async tabWord => {
 		.then(async resBySentence => {
 			console.log(JSON.stringify(resBySentence, null, 1));
 			await listSentenceByTag(resBySentence).then(async resByTag => {
-				console.log(JSON.stringify(resByTag, null, 1));
+				console.log(JSON.stringify(await groupSameSentenceTag(resByTag),
+					null, 1));
 			});
 		});
+
+	/* Await listSentenceByTag(tabTag).then(async resByTag => {
+		console.log(JSON.stringify(resByTag, null, 1));
+		console.log(JSON.stringify(
+			await groupSameSentenceTag(resByTag), null, 1));
+		//await groupSameSentenceTag(resByTag)
+	}); */
+
+	// console.log(await tagEqualTag(tabTag[0], tabTag[0]));
 };
 
 test(tabWord);
