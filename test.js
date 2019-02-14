@@ -1,4 +1,5 @@
 const {Database} = require('arangojs');
+const R = require('ramda');
 const {
 	wordMatch,
 	wordMatchId,
@@ -15,7 +16,8 @@ const tabSentence = [
 ];
 
 const tabWord = [
-	'j'
+	'faire',
+	'voyage'
 ];
 
 const computeRelScore = async tabWord =>
@@ -51,7 +53,8 @@ const getMaxScore = async tabWord =>
 		resolve(tabWord);
 	});
 
-const main = async tabWord => {
+const listWord = async tabWord => {
+	console.log('listWord');
 	const tabRes = [];
 	await tabWord.reduce(async (promise, word) => {
 		await promise;
@@ -101,7 +104,11 @@ const getClosestWord = async wordID => {
 		.splice(0, 10);
 };
 
-const getTagsBySentence = async (tabSentence, tabRelWord) => {
+const getTagsBySentence = async (tabRelWord, tabSentence) => {
+	console.log('arg1: ');
+	console.log(tabRelWord);
+	console.log('arg2: ');
+	console.log(tabSentence);
 	return new Promise(resolve => {
 		const tabRes = [];
 		tabSentence.forEach(sentence => {
@@ -286,6 +293,7 @@ const getPosWord = async wordID => {
 };
 
 const filterWordsByPos = async tabPos => {
+	console.log('filterWord');
 	return new Promise(resolve => {
 		const tabRes = [];
 		for (let i=0; i<tabPos.length; i++) {
@@ -297,6 +305,9 @@ const filterWordsByPos = async tabPos => {
 							usefull = false;
 							break;
 						case 'Pro:':
+							usefull = false;
+							break;
+						case 'Det:':
 							usefull = false;
 							break;
 						default:
@@ -313,8 +324,9 @@ const filterWordsByPos = async tabPos => {
 };
 
 const test = async tabWord => {
-	/*await getTagsBySentence(tabSentence,
-		await sortAndFilter(await main(tabWord)))
+	await getTagsBySentence(tabSentence,
+		await sortAndFilter(await listWord(
+			await filterWordsByPos(await testPosRelations(tabWord)))))
 		.then(async resBySentence => {
 			console.log(JSON.stringify(resBySentence, null, 1));
 			await listSentenceByTag(resBySentence).then(async resByTag => {
@@ -322,7 +334,7 @@ const test = async tabWord => {
 					await groupSameSentenceTag(resByTag)),
 					null, 1));
 			});
-		});*/
+		});
 
 	/* Await listSentenceByTag(tabTag).then(async resByTag => {
 		console.log(JSON.stringify(resByTag, null, 1));
@@ -331,10 +343,23 @@ const test = async tabWord => {
 		//await groupSameSentenceTag(resByTag)
 	}); */
 
-	console.log(JSON.stringify(
-		await filterWordsByPos(
-			await testPosRelations(tabWord)), null, 1));
+	/*console.log(JSON.stringify(
+		await testPosRelations(tabWord), null, 1));*/
 };
 
-test(tabWord);
+const main = (tabWord, tabSentence) => R.pipe(
+	testPosRelations,
+	R.then(filterWordsByPos),
+	R.then(listWord),
+	R.then(sortAndFilter),
+	R.then(getTagsBySentence(R.__, tabSentence)),
+	R.then(listSentenceByTag),
+	R.then(groupSameSentenceTag),
+	R.then(sortTagByNumberOfSentences),
+	R.then(R.tap(console.log))
+)(tabWord);
+
+main(tabWord, tabSentence);
+
+//test(tabWord);
 
