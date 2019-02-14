@@ -39,5 +39,6 @@ node arango-import-relations-family.js
 node arango-import-relations-lemme.js
 node arango-import-relations-syn.js
 node arango-import-relations-variante.js
+node arango-import-relations-pos.js
 ```
 

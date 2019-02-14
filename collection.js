@@ -16,7 +16,7 @@ const main = async () => {
 	// Const collection = db.collection("lemmeRelations");
 	// console.log(collection);
 	await graph.addEdgeDefinition({
-		collection: 'lemmeRelations',
+		collection: 'posRelations',
 		from: ['words'],
 		to: ['words']
 	});

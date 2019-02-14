@@ -3,6 +3,7 @@ const {
 	wordMatch,
 	wordMatchId,
 	synRelationForWord,
+	posRelationForWord,
 	familyRelationForWord
 } = require('./lib/queries.js');
 
@@ -14,113 +15,7 @@ const tabSentence = [
 ];
 
 const tabWord = [
-	'faire',
-	'de',
-	'la',
-	'lille',
-	'randonnée',
-	'voyager',
-	'vers'
-];
-
-const tabTest = [
-	{
-		"tag": "faire",
-		"sentences": [
-			"faire de la randonnée"
-		]
-	},
-	{
-		"tag": "fabriquer",
-		"sentences": [
-			"faire de la randonnée"
-		]
-	},
-	{
-		"tag": "construire",
-		"sentences": [
-			"faire de la randonnée"
-		]
-	},
-	{
-		"tag": "de",
-		"sentences": [
-			"faire de la randonnée"
-		]
-	},
-	{
-		"tag": "sous",
-		"sentences": [
-			"faire de la randonnée"
-		]
-	},
-	{
-		"tag": "pour",
-		"sentences": [
-			"faire de la randonnée"
-		]
-	},
-	{
-		"tag": "la",
-		"sentences": [
-			"faire de la randonnée"
-		]
-	},
-	{
-		"tag": "randonnée",
-		"sentences": [
-			"faire de la randonnée"
-		]
-	},
-	{
-		"tag": "voyage",
-		"sentences": [
-			"faire de la randonnée",
-			"voyager vers lille"
-		]
-	},
-	{
-		"tag": "tour",
-		"sentences": [
-			"faire de la randonnée"
-		]
-	},
-	{
-		"tag": "course",
-		"sentences": [
-			"faire de la randonnée"
-		]
-	},
-	{
-		"tag": "voyager",
-		"sentences": [
-			"voyager vers lille"
-		]
-	},
-	{
-		"tag": "partir",
-		"sentences": [
-			"voyager vers lille"
-		]
-	},
-	{
-		"tag": "vers",
-		"sentences": [
-			"voyager vers lille"
-		]
-	},
-	{
-		"tag": "poésie",
-		"sentences": [
-			"voyager vers lille"
-		]
-	},
-	{
-		"tag": "lille",
-		"sentences": [
-			"voyager vers lille"
-		]
-	}
+	'j'
 ];
 
 const computeRelScore = async tabWord =>
@@ -350,8 +245,75 @@ const sortTagByNumberOfSentences = (tabTag) => {
 	});
 };
 
+const testPosRelations = async tabWord => {
+	const tabRes = [];
+	await tabWord.reduce(async (promise, word) => {
+		await promise;
+		const wRef = await wordMatch(word, db);
+		if (wRef._result.length > 0) {
+			tabRes.push({
+				word,
+				res: await getPosWord(wRef._result[0]._id)
+			});
+		} else {
+			tabRes.push({
+				word,
+				ww: 0,
+				res: []
+			});
+		}
+	}, Promise.resolve());
+	return tabRes;
+};
+
+const getPosWord = async wordID => {
+	const resRelPos = await posRelationForWord(wordID, db);
+	const tabRel = [];
+	await resRelPos.reduce(async (promise, res) => {
+		await promise;
+		const wRef1 = await wordMatchId(res._from, db);
+		let wRef2 = await wordMatchId(res._to, db);
+		wRef2 = wRef2._result[0];
+		if (wRef1 !== undefined && wRef2 !== undefined) {
+			tabRel.push({
+				word: wRef2.word,
+				wRel: res.weight
+			});
+		}
+	}, Promise.resolve());
+	return tabRel.sort((a, b) => b.wRel - a.wRel)
+		.splice(0, 3);
+};
+
+const filterWordsByPos = async tabPos => {
+	return new Promise(resolve => {
+		const tabRes = [];
+		for (let i=0; i<tabPos.length; i++) {
+			let usefull = true;
+			tabPos[i].res.forEach(pos => {
+				if (usefull) {
+					switch (pos.word.substring(0, 4)) {
+						case 'Pre:':
+							usefull = false;
+							break;
+						case 'Pro:':
+							usefull = false;
+							break;
+						default:
+							break;
+					}
+				}
+			});
+			if (usefull) {
+				tabRes.push(tabPos[i].word)
+			}
+		}
+		resolve(tabRes);
+	});
+};
+
 const test = async tabWord => {
-	await getTagsBySentence(tabSentence,
+	/*await getTagsBySentence(tabSentence,
 		await sortAndFilter(await main(tabWord)))
 		.then(async resBySentence => {
 			console.log(JSON.stringify(resBySentence, null, 1));
@@ -360,7 +322,7 @@ const test = async tabWord => {
 					await groupSameSentenceTag(resByTag)),
 					null, 1));
 			});
-		});
+		});*/
 
 	/* Await listSentenceByTag(tabTag).then(async resByTag => {
 		console.log(JSON.stringify(resByTag, null, 1));
@@ -369,7 +331,9 @@ const test = async tabWord => {
 		//await groupSameSentenceTag(resByTag)
 	}); */
 
-	// console.log(await tagEqualTag(tabTag[0], tabTag[0]));
+	console.log(JSON.stringify(
+		await filterWordsByPos(
+			await testPosRelations(tabWord)), null, 1));
 };
 
 test(tabWord);
