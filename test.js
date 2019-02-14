@@ -9,15 +9,118 @@ const {
 const db = new Database();
 
 const tabSentence = [
-	'faire randonnée',
-	'voyager lille'
+	'faire de la randonnée',
+	'voyager vers lille'
 ];
 
 const tabWord = [
 	'faire',
+	'de',
+	'la',
 	'lille',
 	'randonnée',
-	'voyager'
+	'voyager',
+	'vers'
+];
+
+const tabTest = [
+	{
+		"tag": "faire",
+		"sentences": [
+			"faire de la randonnée"
+		]
+	},
+	{
+		"tag": "fabriquer",
+		"sentences": [
+			"faire de la randonnée"
+		]
+	},
+	{
+		"tag": "construire",
+		"sentences": [
+			"faire de la randonnée"
+		]
+	},
+	{
+		"tag": "de",
+		"sentences": [
+			"faire de la randonnée"
+		]
+	},
+	{
+		"tag": "sous",
+		"sentences": [
+			"faire de la randonnée"
+		]
+	},
+	{
+		"tag": "pour",
+		"sentences": [
+			"faire de la randonnée"
+		]
+	},
+	{
+		"tag": "la",
+		"sentences": [
+			"faire de la randonnée"
+		]
+	},
+	{
+		"tag": "randonnée",
+		"sentences": [
+			"faire de la randonnée"
+		]
+	},
+	{
+		"tag": "voyage",
+		"sentences": [
+			"faire de la randonnée",
+			"voyager vers lille"
+		]
+	},
+	{
+		"tag": "tour",
+		"sentences": [
+			"faire de la randonnée"
+		]
+	},
+	{
+		"tag": "course",
+		"sentences": [
+			"faire de la randonnée"
+		]
+	},
+	{
+		"tag": "voyager",
+		"sentences": [
+			"voyager vers lille"
+		]
+	},
+	{
+		"tag": "partir",
+		"sentences": [
+			"voyager vers lille"
+		]
+	},
+	{
+		"tag": "vers",
+		"sentences": [
+			"voyager vers lille"
+		]
+	},
+	{
+		"tag": "poésie",
+		"sentences": [
+			"voyager vers lille"
+		]
+	},
+	{
+		"tag": "lille",
+		"sentences": [
+			"voyager vers lille"
+		]
+	}
 ];
 
 const computeRelScore = async tabWord =>
@@ -132,8 +235,17 @@ const getIndexWordInTabRel = async (word, tabRelWord) => {
 				resolve(i);
 			}
 		}
-
 		resolve(-1);
+	});
+};
+
+const sortAndFilter = async tabWord => {
+	return new Promise(resolve => {
+		tabWord.forEach(word => {
+			word.res = word.res.splice(0, 3)
+				.filter(res => res.ww > word.ww);
+		});
+		resolve(tabWord);
 	});
 };
 
@@ -231,13 +343,10 @@ const arrayEqualArray = async (array1, array2) => {
 	});
 };
 
-const sortAndFilter = async tabWord => {
+const sortTagByNumberOfSentences = (tabTag) => {
 	return new Promise(resolve => {
-		tabWord.forEach(word => {
-			word.res = word.res.splice(0, 3)
-				.filter(res => res.ww > word.ww);
-		});
-		resolve(tabWord);
+		tabTag.sort((a, b) => b.sentences.length - a.sentences.length);
+		resolve(tabTag);
 	});
 };
 
@@ -247,7 +356,8 @@ const test = async tabWord => {
 		.then(async resBySentence => {
 			console.log(JSON.stringify(resBySentence, null, 1));
 			await listSentenceByTag(resBySentence).then(async resByTag => {
-				console.log(JSON.stringify(await groupSameSentenceTag(resByTag),
+				console.log(JSON.stringify(await sortTagByNumberOfSentences(
+					await groupSameSentenceTag(resByTag)),
 					null, 1));
 			});
 		});
