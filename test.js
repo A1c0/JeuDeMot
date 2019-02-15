@@ -7,6 +7,11 @@ const {
 	posRelationForWord,
 	familyRelationForWord
 } = require('./lib/queries.js');
+const {
+	parseFile,
+	cleanPhrases,
+	listAllWords
+} = require('./lib/util-functions.js');
 
 const db = new Database();
 
@@ -323,17 +328,35 @@ const filterWordsByPos = async tabPos => {
 	});
 };
 
-const main = (tabWord, tabSentence) => R.pipe(
+const computeTags = (tabWords, tabSentences) => R.pipe(
 	testPosRelations,
 	R.then(filterWordsByPos),
 	R.then(listWord),
 	R.then(sortAndFilter),
-	R.then(getTagsBySentence(tabSentence)),
+	R.then(getTagsBySentence(tabSentences)),
 	R.then(listSentenceByTag),
 	R.then(groupSameSentenceTag),
 	R.then(sortTagByNumberOfSentences),
 	R.then(R.tap(console.log)),
-)(tabWord);
+)(tabWords);
 
-main(tabWord, tabSentence);
+const main = async path => {
+	let tabSentence = await parseFile(path);
+	tabSentence = await cleanPhrases(tabSentence);
+	tabSentence = tabSentence.splice(0, 3);
+
+	const tabWords = await listAllWords(tabSentence);
+
+	console.log('tabSentences : ');
+	console.log(tabSentence);
+	console.log('tabWords : ');
+	console.log(tabWords);
+
+	console.log('tags : ');
+	computeTags(tabWords, tabSentence)
+};
+
+main('./files/log-airfrance.csv');
+
+//computeTag(tabWord, tabSentence);
 
