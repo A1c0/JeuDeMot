@@ -3,12 +3,12 @@ const {Database} = require('arangojs');
 const R = require('ramda');
 const ProgressBar = require('progress');
 const Bromise = require('bluebird');
-const rtype = require('./rtid');
+const rtype = require('../schemas/rtid');
 
 const db = new Database();
 const graph = db.graph('jeuDeMot');
 
-const relations = graph.edgeCollection('synRelations');
+const relations = graph.edgeCollection('familyRelations');
 
 let bar;
 
@@ -51,7 +51,7 @@ const bulkImportFile = R.pipeP(
 	),
 	R.map(parse),
 	R.filter(R.complement(R.equals('NOT HANDLED'))),
-	R.filter(R.pipe(R.prop('type'), R.equals('r_syn'))),
+	R.filter(R.pipe(R.prop('type'), R.equals('r_family'))),
 	R.tap(R.pipe(R.length, console.log)),
 	x => relations.import(x)
 );

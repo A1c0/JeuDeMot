@@ -3,19 +3,25 @@ const {Database} = require('arangojs');
 const R = require('ramda');
 const ProgressBar = require('progress');
 const Bromise = require('bluebird');
-const ntype = require('./ntid');
+const rtype = require('../schemas/rtid');
+
+const db = new Database();
+const graph = db.graph('jeuDeMot');
+
+const relations = graph.edgeCollection('synRelations');
 
 let bar;
 
 const parseArray = arr => {
 	const kv = R.pipe(R.split('='), R.prop('1'));
 	const ga = R.prop(R.__, arr);
-	if (R.equals(0, R.indexOf('eid', R.prop('0', arr)))) {
+	if (R.equals(0, R.indexOf('rid', R.prop('0', arr)))) {
 		return {
 			_key: kv(ga('0')),
-			word: R.replace(/"/g, '', kv(ga('1'))),
-			type: ntype[kv(ga('2'))].name,
-			weight: ga('3') ? Number(kv(ga('3'))) : -1
+			_from: `words/${R.replace(/"/g, '', kv(ga('1')))}`,
+			_to: `words/${R.replace(/"/g, '', kv(ga('2')))}`,
+			type: rtype[kv(ga('3'))] ? rtype[kv(ga('3'))].name : 'retards',
+			weight: ga('4') ? Number(kv(ga('4'))) : -1
 		};
 	}
 
@@ -45,12 +51,9 @@ const bulkImportFile = R.pipeP(
 	),
 	R.map(parse),
 	R.filter(R.complement(R.equals('NOT HANDLED'))),
-	x => {
-		const db = new Database();
-		const graph = db.graph('lirmm');
-		const words = graph.vertexCollection('words');
-		words.import(x);
-	}
+	R.filter(R.pipe(R.prop('type'), R.equals('r_syn'))),
+	R.tap(R.pipe(R.length, console.log)),
+	x => relations.import(x)
 );
 
 const main = R.pipeP(

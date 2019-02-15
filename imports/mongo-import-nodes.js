@@ -1,27 +1,26 @@
 const fs = require('fs-extra');
-const {Database} = require('arangojs');
+const mongoose = require('mongoose');
 const R = require('ramda');
 const ProgressBar = require('progress');
 const Bromise = require('bluebird');
-const rtype = require('./rtid');
+const ntype = require('../schemas/ntid');
+const {Node} = require('../schemas/node-schema');
 
-const db = new Database();
-const graph = db.graph('jeuDeMot');
-
-const relations = graph.edgeCollection('varianteRelations');
+mongoose.Promise = Bromise;
+mongoose.set('useNewUrlParser', true);
+mongoose.connect('mongodb://localhost:27017/lirmm-test');
 
 let bar;
 
 const parseArray = arr => {
 	const kv = R.pipe(R.split('='), R.prop('1'));
 	const ga = R.prop(R.__, arr);
-	if (R.equals(0, R.indexOf('rid', R.prop('0', arr)))) {
+	if (R.equals(0, R.indexOf('eid', R.prop('0', arr)))) {
 		return {
-			_key: kv(ga('0')),
-			_from: `words/${R.replace(/"/g, '', kv(ga('1')))}`,
-			_to: `words/${R.replace(/"/g, '', kv(ga('2')))}`,
-			type: rtype[kv(ga('3'))] ? rtype[kv(ga('3'))].name : 'retards',
-			weight: ga('4') ? Number(kv(ga('4'))) : -1
+			nid: kv(ga('0')),
+			word: R.replace(/"/g, '', kv(ga('1'))) || 'GOT NOTHING',
+			type: ntype[kv(ga('2'))].name,
+			weight: ga('3') ? Number(kv(ga('3'))) : -1
 		};
 	}
 
@@ -51,9 +50,18 @@ const bulkImportFile = R.pipeP(
 	),
 	R.map(parse),
 	R.filter(R.complement(R.equals('NOT HANDLED'))),
-	R.filter(R.pipe(R.prop('type'), R.equals('r_variante'))),
-	R.tap(R.pipe(R.length, console.log)),
-	x => relations.import(x)
+	R.splitEvery(10000),
+	R.tap(R.pipe(
+		R.length,
+		x => {
+			bar = new ProgressBar('Bulk insert [:bar] :current/:total :etas :rate/s',
+				{total: x, width: 40});
+		})
+	),
+	x => Bromise.each(x, b => {
+		bar.tick();
+		return Node.insertMany(b);
+	})
 );
 
 const main = R.pipeP(
