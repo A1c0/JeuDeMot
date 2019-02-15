@@ -13,55 +13,55 @@ const relations = graph.edgeCollection('posRelations');
 let bar;
 
 const parseArray = arr => {
-  const kv = R.pipe(R.split('='), R.prop('1'));
-  const ga = R.prop(R.__, arr);
-  if (R.equals(0, R.indexOf('rid', R.prop('0', arr)))) {
-    return {
-      _key: kv(ga('0')),
-      _from: `words/${R.replace(/"/g, '', kv(ga('1')))}`,
-      _to: `words/${R.replace(/"/g, '', kv(ga('2')))}`,
-      type: rtype[kv(ga('3'))] ? rtype[kv(ga('3'))].name : 'retards',
-      weight: ga('4') ? Number(kv(ga('4'))) : -1
-    };
-  }
+	const kv = R.pipe(R.split('='), R.prop('1'));
+	const ga = R.prop(R.__, arr);
+	if (R.equals(0, R.indexOf('rid', R.prop('0', arr)))) {
+		return {
+			_key: kv(ga('0')),
+			_from: `words/${R.replace(/"/g, '', kv(ga('1')))}`,
+			_to: `words/${R.replace(/"/g, '', kv(ga('2')))}`,
+			type: rtype[kv(ga('3'))] ? rtype[kv(ga('3'))].name : 'retards',
+			weight: ga('4') ? Number(kv(ga('4'))) : -1
+		};
+	}
 
-  return 'NOT HANDLED';
+	return 'NOT HANDLED';
 };
 
 const parse = R.pipe(
-  R.split('|'),
-  parseArray,
-  R.tap(() => bar.tick())
+	R.split('|'),
+	parseArray,
+	R.tap(() => bar.tick())
 );
 
 const bulkImportFile = R.pipeP(
-  f => {
-    console.log(`Now processing : ${f}`);
-    return fs.readFile(`./files/${f}`, 'utf8');
-  },
-  R.split('\n'),
-  R.filter(
-    x => R.and(R.complement(R.equals(''))(x), R.gt(0, R.indexOf('/', x)))),
-  R.tap(R.pipe(
-    R.length,
-    x => {
-      bar = new ProgressBar('Parsing [:bar] :current/:total :etas :rate/s',
-        {total: x, width: 40});
-    })
-  ),
-  R.map(parse),
-  R.filter(R.complement(R.equals('NOT HANDLED'))),
-  R.filter(R.pipe(R.prop('type'), R.equals('r_pos'))),
-  R.tap(R.pipe(R.length, console.log)),
-  x => relations.import(x)
+	f => {
+		console.log(`Now processing : ${f}`);
+		return fs.readFile(`./files/${f}`, 'utf8');
+	},
+	R.split('\n'),
+	R.filter(
+		x => R.and(R.complement(R.equals(''))(x), R.gt(0, R.indexOf('/', x)))),
+	R.tap(R.pipe(
+		R.length,
+		x => {
+			bar = new ProgressBar('Parsing [:bar] :current/:total :etas :rate/s',
+				{total: x, width: 40});
+		})
+	),
+	R.map(parse),
+	R.filter(R.complement(R.equals('NOT HANDLED'))),
+	R.filter(R.pipe(R.prop('type'), R.equals('r_pos'))),
+	R.tap(R.pipe(R.length, console.log)),
+	x => relations.import(x)
 );
 
 const main = R.pipeP(
-  () => fs.readdir('./files'),
-  filesList => Bromise.each(filesList, bulkImportFile)
+	() => fs.readdir('./files'),
+	filesList => Bromise.each(filesList, bulkImportFile)
 );
 
 console.time('LIRMM to DB');
 main().then(() => {
-  console.timeEnd('LIRMM to DB');
+	console.timeEnd('LIRMM to DB');
 });
