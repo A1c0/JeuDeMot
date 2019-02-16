@@ -37,7 +37,7 @@ const parse = R.pipe(
 const bulkImportFile = R.pipeP(
 	f => {
 		console.log(`Now processing : ${f}`);
-		return fs.readFile(`./files/${f}`, 'utf8');
+		return fs.readFile(`./../files/${f}`, 'utf8');
 	},
 	R.split('\n'),
 	R.filter(
@@ -57,7 +57,7 @@ const bulkImportFile = R.pipeP(
 );
 
 const main = R.pipeP(
-	() => fs.readdir('./files'),
+	() => fs.readdir('./../files'),
 	filesList => Bromise.each(filesList, bulkImportFile)
 );
 
