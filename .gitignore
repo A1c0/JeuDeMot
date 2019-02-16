@@ -125,5 +125,7 @@ Supprimerait files/
 Supprimerait jeu-de-mot.txt
 /jeu-de-mot.txt
 
-.idea/*
-.idea
+/.idea/*
+/.idea
+/res/
+Supprimerait res/

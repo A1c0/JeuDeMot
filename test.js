@@ -5,13 +5,19 @@ const {
 	wordMatchId,
 	synRelationForWord,
 	posRelationForWord,
-	familyRelationForWord
+	familyRelationForWord,
+	associatedRelationForWord
 } = require('./lib/queries.js');
 const {
 	parseFile,
 	cleanPhrases,
 	listAllWords
 } = require('./lib/util-functions.js');
+const {
+	findWords,
+	findLemmes
+} = require('./lemme-test');
+const Save = require('./lib/result-save');
 
 const db = new Database();
 
@@ -22,10 +28,8 @@ const tabSentence = [
 
 const tabWord = [
 	'faire',
-	'de',
 	'randonnée',
-	'voyager',
-	'lille'
+	'voyager'
 ];
 
 const computeRelScore = async tabWord =>
@@ -91,8 +95,8 @@ const listWord = async tabWord => {
 
 const getClosestWord = async wordID => {
 	const resRelSyn = await synRelationForWord(wordID, db);
-	const resRelFamily = await familyRelationForWord(wordID, db);
-	const rels = resRelSyn._result.concat(resRelFamily._result);
+	const resRelAssociated = await associatedRelationForWord(wordID, db);
+	const rels = resRelSyn._result.concat(resRelAssociated._result);
 	const tabRel = [];
 	await rels.reduce(async (promise, res) => {
 		await promise;
@@ -100,11 +104,13 @@ const getClosestWord = async wordID => {
 		let wRef2 = await wordMatchId(res._to, db);
 		wRef2 = wRef2._result[0];
 		if (wRef1 !== undefined && wRef2 !== undefined) {
-			tabRel.push({
-				word: wRef2.word,
-				ww: wRef2.weight,
-				wRel: res.weight
-			});
+			if (wRef1.word !== '_COM' || wRef2 !== '_COM') {
+				tabRel.push({
+					word: wRef2.word,
+					ww: wRef2.weight,
+					wRel: res.weight
+				});
+			}
 		}
 	}, Promise.resolve());
 	return tabRel.sort((a, b) => b.wRel - a.wRel)
@@ -343,9 +349,12 @@ const computeTags = (tabWords, tabSentences) => R.pipe(
 const main = async path => {
 	let tabSentence = await parseFile(path);
 	tabSentence = await cleanPhrases(tabSentence);
-	tabSentence = tabSentence.splice(0, 3);
+	tabSentence = tabSentence.splice(0, 10);
 
-	const tabWords = await listAllWords(tabSentence);
+	let tabWords = await listAllWords(tabSentence);
+
+	tabWords = await findWords(tabWords);
+	tabWords = await findLemmes(tabWords);
 
 	console.log('tabSentences : ');
 	console.log(tabSentence);
@@ -353,10 +362,24 @@ const main = async path => {
 	console.log(tabWords);
 
 	console.log('tags : ');
-	computeTags(tabWords, tabSentence)
+	const output = await computeTags(tabWords, tabSentence);
+
+	const endTest = new Save('/home/victor/Documents/ESME/Js/arango/res/',
+		'resArango3', ['tag', 'sentence']);
+	endTest.data = output;
+	endTest.saveAsCsv();
 };
 
-main('./files/log-airfrance.csv');
+const test = async tabWord => {
+	console.log('tabWord');
+	console.log(tabWord);
+	console.log('res');
+	console.log(JSON.stringify(await listWord(tabWord), null, 1));
+};
 
-//computeTag(tabWord, tabSentence);
+// Test(tabWord);
+
+main('./files/sentences.txt');
+
+// ComputeTag(tabWord, tabSentence);
 
