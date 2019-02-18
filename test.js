@@ -6,24 +6,20 @@ const {
 	synRelationForWord,
 	posRelationForWord,
 	familyRelationForWord,
-	associatedRelationForWord
+	associatedRelationForWord,
 } = require('./lib/queries.js');
 const {
 	parseFile,
 	cleanPhrases,
 	listAllWords
 } = require('./lib/util-functions.js');
-const {
-	findWords,
-	findLemmes
-} = require('./lemme-test');
+const {preprocessing} = require('./lib/preprocessing');
 const Save = require('./lib/result-save');
 
 const db = new Database();
 
 const tabSentence = [
-	'faire de la randonnée',
-	'voyager vers lille'
+	'10 11 13'
 ];
 
 const tabWord = [
@@ -104,7 +100,7 @@ const getClosestWord = async wordID => {
 		let wRef2 = await wordMatchId(res._to, db);
 		wRef2 = wRef2._result[0];
 		if (wRef1 !== undefined && wRef2 !== undefined) {
-			if (wRef1.word !== '_COM' || wRef2 !== '_COM') {
+			if (wRef1.word !== '_COM' && wRef2 !== '_COM') {
 				tabRel.push({
 					word: wRef2.word,
 					ww: wRef2.weight,
@@ -349,12 +345,11 @@ const computeTags = (tabWords, tabSentences) => R.pipe(
 const main = async path => {
 	let tabSentence = await parseFile(path);
 	tabSentence = await cleanPhrases(tabSentence);
-	tabSentence = tabSentence.splice(0, 10);
+	tabSentence = tabSentence.splice(0, 100);
 
 	let tabWords = await listAllWords(tabSentence);
 
-	tabWords = await findWords(tabWords);
-	tabWords = await findLemmes(tabWords);
+	tabWords = await preprocessing(tabWords);
 
 	console.log('tabSentences : ');
 	console.log(tabSentence);
@@ -365,21 +360,38 @@ const main = async path => {
 	const output = await computeTags(tabWords, tabSentence);
 
 	const endTest = new Save('/home/victor/Documents/ESME/Js/arango/res/',
-		'resArango3', ['tag', 'sentence']);
+		'resArango100', ['tag', 'sentence']);
 	endTest.data = output;
 	endTest.saveAsCsv();
 };
 
-const test = async tabWord => {
-	console.log('tabWord');
-	console.log(tabWord);
-	console.log('res');
-	console.log(JSON.stringify(await listWord(tabWord), null, 1));
+const test = async tabSentence => {
+	tabSentence = await cleanPhrases(tabSentence);
+	tabSentence = tabSentence.splice(0, 100);
+
+	let tabWords = await listAllWords(tabSentence);
+
+	tabWords = await preprocessing(tabWords);
+
+	console.log('tabSentences : ');
+	console.log(tabSentence);
+	console.log('tabWords : ');
+	console.log(tabWords);
+
+	console.log('listword :');
 };
 
-// Test(tabWord);
+const test2 = async word => {
+	wordMatch(word, db).then(async res => {
+		console.log(JSON.stringify(await getPosWord(res._result[0]._id), null, 1));
+	});
 
-main('./files/sentences.txt');
+};
+
+test(tabSentence);
+//test2('ni');
+
+//main('./files/sentences.txt');
 
 // ComputeTag(tabWord, tabSentence);
 
