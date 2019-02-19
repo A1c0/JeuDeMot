@@ -6,7 +6,7 @@ const {
 	synRelationForWord,
 	posRelationForWord,
 	familyRelationForWord,
-	associatedRelationForWord,
+	associatedRelationForWord
 } = require('./lib/queries.js');
 const {
 	parseFile,
@@ -65,16 +65,18 @@ const listWord = async tabWord => {
 	const tabRes = [];
 	await tabWord.reduce(async (promise, word) => {
 		await promise;
-		const wRef = await wordMatch(word, db);
+		const wRef = await wordMatch(word.word, db);
 		if (wRef._result.length > 0) {
 			tabRes.push({
-				word,
+				word: word.word,
+				originalWord: word.originalWord,
 				ww: wRef._result[0].weight,
 				res: await getClosestWord(wRef._result[0]._id)
 			});
 		} else {
 			tabRes.push({
-				word,
+				word: word.word,
+				originalWord: word.originalWord,
 				ww: 0,
 				res: []
 			});
@@ -124,7 +126,7 @@ const getTagsBySentence = R.curry(async (tabSentence, tabRelWord) => {
 					getIndexWordInTabRel(wordFromSentence, tabRelWord)
 						.then(index => {
 							if (index >= 0) {
-								tabResToPush.tags.push(wordFromSentence);
+								tabResToPush.tags.push(tabRelWord[index].word);
 								tabRelWord[index].res
 									.forEach(a => tabResToPush.tags.push(a.word));
 							}
@@ -139,7 +141,7 @@ const getTagsBySentence = R.curry(async (tabSentence, tabRelWord) => {
 const getIndexWordInTabRel = async (word, tabRelWord) => {
 	return new Promise(resolve => {
 		for (let i = 0; i < tabRelWord.length; i++) {
-			if (tabRelWord[i].word === word) {
+			if (tabRelWord[i].originalWord === word) {
 				resolve(i);
 			}
 		}
@@ -331,11 +333,10 @@ const filterWordsByPos = async tabPos => {
 };
 
 const computeTags = (tabWords, tabSentences) => R.pipe(
-	testPosRelations,
-	R.then(filterWordsByPos),
-	R.then(listWord),
+	listWord,
 	R.then(sortAndFilter),
 	R.then(getTagsBySentence(tabSentences)),
+	R.then(R.forEach(sentence => sentence.tags = R.uniq(sentence.tags))),
 	R.then(listSentenceByTag),
 	R.then(groupSameSentenceTag),
 	R.then(sortTagByNumberOfSentences),
@@ -360,7 +361,7 @@ const main = async path => {
 	const output = await computeTags(tabWords, tabSentence);
 
 	const endTest = new Save('/home/victor/Documents/ESME/Js/arango/res/',
-		'resArango100', ['tag', 'sentence']);
+		'resArango100-2', ['tag', 'sentence']);
 	endTest.data = output;
 	endTest.saveAsCsv();
 };
@@ -385,13 +386,12 @@ const test2 = async word => {
 	wordMatch(word, db).then(async res => {
 		console.log(JSON.stringify(await getPosWord(res._result[0]._id), null, 1));
 	});
-
 };
 
-test(tabSentence);
-//test2('ni');
+// Test(tabSentence);
+// test2('ni');
 
-//main('./files/sentences.txt');
+main('./files/sentences.txt');
 
 // ComputeTag(tabWord, tabSentence);
 
