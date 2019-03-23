@@ -6,7 +6,9 @@ const {
 	synRelationForWord,
 	posRelationForWord,
 	familyRelationForWord,
-	associatedRelationForWord
+	associatedRelationForWord,
+	getAllVarianteRelations,
+	varianteRelationForWord
 } = require('./lib/queries.js');
 const {
 	parseFile,
@@ -19,7 +21,9 @@ const Save = require('./lib/result-save');
 const db = new Database();
 
 const tabSentence = [
-	'10 11 13'
+	'M.C.P.A.',
+	'chiffre',
+	'2'
 ];
 
 const tabWord = [
@@ -102,7 +106,7 @@ const getClosestWord = async wordID => {
 		let wRef2 = await wordMatchId(res._to, db);
 		wRef2 = wRef2._result[0];
 		if (wRef1 !== undefined && wRef2 !== undefined) {
-			if (wRef1.word !== '_COM' && wRef2 !== '_COM') {
+			if (wRef1.word !== '_COM' && wRef2.word !== '_COM') {
 				tabRel.push({
 					word: wRef2.word,
 					ww: wRef2.weight,
@@ -191,10 +195,15 @@ const getIndexTag = async (tag, tabTag) => {
 };
 
 const groupSameSentenceTag = async tabTagSentence => {
+	const tabRes = [];
+	const tabTagDone = [];
+
 	return new Promise(resolve => {
 		tabTagSentence.reduce(async (promise, tag1) => {
 			await Promise;
 			await computeTabEqual(tag1, tabTagSentence).then(tabTagEqual => {
+				console.log('tabTagEqual');
+				console.log(JSON.stringify(tabTagEqual, null, 1));
 				if (tabTagEqual.length > 1) {
 					const newTag = {tag: [], sentences: []};
 					newTag.sentences = tabTagSentence[tabTagEqual[0]].sentences;
@@ -202,15 +211,15 @@ const groupSameSentenceTag = async tabTagSentence => {
 						newTag.tag.push(tabTagSentence[index].tag);
 					});
 					if (newTag.sentences.length > 1) {
-						let test = true;
-						tabTagSentence.forEach(tag => {
-							if (test) {
-								test = tagEqualTag(tag, newTag);
-							}
+						console.log('if > 1 :');
+						tabTagSentence.push(newTag);
+						console.log('foreach');
+						tabTagEqual.forEach(index => {
+							console.log('index : ');
+							console.log(index);
+							console.log(JSON.stringify(tabTagSentence[index], null, 1));
+							tabTagSentence.splice(index, 1);
 						});
-						if (test) {
-							tabTagSentence.push(newTag);
-						}
 					}
 				}
 			});
@@ -218,6 +227,18 @@ const groupSameSentenceTag = async tabTagSentence => {
 		resolve(tabTagSentence);
 	});
 };
+
+const sameSentences = (a, b) => R.equals(R.prop('sentences', a), R.prop('sentences', b));
+
+const concatValues = (k, l, r) => k === 'sentences' ? R.uniq(R.concat(l, r)) :
+	R.concat(R.concat(l, ' '), r);
+
+const mergeObject = (a, b) => R.mergeWithKey(concatValues, a, b);
+
+const groupSentences = R.pipe(
+	R.groupWith(sameSentences),
+	R.map(R.reduce(mergeObject, [])),
+);
 
 const computeTabEqual = async (tag1, tabTagSentence) => {
 	return new Promise(resolve => {
@@ -332,66 +353,117 @@ const filterWordsByPos = async tabPos => {
 	});
 };
 
+const tagToOutput = async tabTag => {
+	await tabTag.reduce(async (promise, tag) => {
+		await promise;
+		if (Array.isArray(tag.tag)) {
+			if (tag.tag.length > 0) {
+				tag.tag = tag.tag.join(' ');
+			} else {
+				tag.tag = tag.tag[0];
+			}
+		}
+	}, Promise.resolve());
+	return tabTag;
+};
+
 const computeTags = (tabWords, tabSentences) => R.pipe(
 	listWord,
 	R.then(sortAndFilter),
 	R.then(getTagsBySentence(tabSentences)),
-	R.then(R.forEach(sentence => sentence.tags = R.uniq(sentence.tags))),
-	R.then(listSentenceByTag),
-	R.then(groupSameSentenceTag),
-	R.then(sortTagByNumberOfSentences),
 	R.then(R.tap(console.log)),
+	R.then(R.forEach(sentence => sentence.tags = R.uniqBy(R.toLower, sentence.tags))),
+	R.then(listSentenceByTag),
+	R.then(groupSentences),
+	R.then(sortTagByNumberOfSentences),
+	R.then(R.tap(console.log))
+)(tabWords);
+
+const computeTags2 = (tabWords, tabSentences) => R.pipe(
+	listWord,
+	R.then(sortAndFilter),
+	R.then(R.tap(console.log)),
+	R.then(getTagsBySentence(tabSentences)),
+	R.then(R.forEach(sentence => sentence.tags = R.uniqBy(R.toLower, sentence.tags))),
+	R.then(listSentenceByTag),
+	R.then(groupSentences),
+	R.then(sortTagByNumberOfSentences),
+	R.then(R.tap(console.log))
 )(tabWords);
 
 const main = async path => {
 	let tabSentence = await parseFile(path);
 	tabSentence = await cleanPhrases(tabSentence);
-	tabSentence = tabSentence.splice(0, 100);
+	tabSentence = tabSentence.splice(0, 200);
 
 	let tabWords = await listAllWords(tabSentence);
+
+	/* Console.log('tabWords 0 : ');
+	console.log(tabWords); */
 
 	tabWords = await preprocessing(tabWords);
 
 	console.log('tabSentences : ');
 	console.log(tabSentence);
-	console.log('tabWords : ');
+	console.log('tabWords 1 : ');
 	console.log(tabWords);
 
 	console.log('tags : ');
 	const output = await computeTags(tabWords, tabSentence);
 
+	console.log(JSON.stringify(output, null, 1));
+
 	const endTest = new Save('/home/victor/Documents/ESME/Js/arango/res/',
-		'resArango100-2', ['tag', 'sentence']);
+		'resArangoTestVINCI', ['tag', 'sentence']);
 	endTest.data = output;
 	endTest.saveAsCsv();
 };
 
 const test = async tabSentence => {
-	tabSentence = await cleanPhrases(tabSentence);
-	tabSentence = tabSentence.splice(0, 100);
+	// TabSentence = await cleanPhrases(tabSentence);
+	// tabSentence = tabSentence.splice(0, 100);
 
-	let tabWords = await listAllWords(tabSentence);
+	await tabSentence.forEach(async word => {
+		const match = await wordMatch(word, db);
+		console.log(match);
+		const id = await match._result[0]._id;
+		console.log(id);
+		const rel = await varianteRelationForWord(id, db);
+		const word1 = await wordMatchId(rel._result[0]._from, db);
+		const word2 = await wordMatchId(rel._result[0]._to, db);
+		const truc = {word1: word1._result[0].word, word2: word2._result[0].word};
+		console.log(JSON.stringify(truc, null, 1));
+	});
 
-	tabWords = await preprocessing(tabWords);
+	/* Await getAllVarianteRelations(db).then(async tabWord => {
+		//console.log(JSON.stringify(tabWord._result.splice(0,10), null, 1));
+		tabWord._result.forEach(async word => {
+			const word1 = await wordMatchId(word._from, db);
+			const word2 = await wordMatchId(word._to, db);
+			const truc = {word1: word1._result[0].word, word2: word2._result[0].word};
+			console.log(JSON.stringify(truc, null, 1));
+		});
+	}); */
+
+	/* tabWords = await preprocessing(tabWords);
 
 	console.log('tabSentences : ');
 	console.log(tabSentence);
 	console.log('tabWords : ');
 	console.log(tabWords);
 
-	console.log('listword :');
+	console.log('listword :'); */
 };
 
-const test2 = async word => {
-	wordMatch(word, db).then(async res => {
-		console.log(JSON.stringify(await getPosWord(res._result[0]._id), null, 1));
-	});
+const test2 = async path => {
+	const tabSentence = await parseFile(path);
+	console.log(JSON.stringify(tabSentence, null, 1));
 };
 
 // Test(tabSentence);
-// test2('ni');
+// test2('./files/psa-finance.csv');
 
-main('./files/sentences.txt');
+main('./files/log-vinci.csv');
 
 // ComputeTag(tabWord, tabSentence);
 
